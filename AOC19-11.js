@@ -1,7 +1,5 @@
 {
 
-fetch('https://cdn.jsdelivr.net/npm/lodash@4.17.4/lodash.min.js').then(r => eval(r.text()));
-
 class IntCodeComputer
 {
     // readHandler provides a single integer value or null if blocking
@@ -231,59 +229,108 @@ class IntCodeComputer
     }
 }
 
-class Plane
+class Plane 
 {
-    constructor()
+    // newPointHandler accepts plane position (x,y) and must return an object
+    constructor(newPointHandler) 
     {
+        this.provider = newPointHandler;
         this.data = [];
         this.points = new Map();
         this.domain = [0, 0];
         this.range = [0, 0];
     }
 
-    _createPoint(x, y)
+    _createPoint(x, y) 
     {
         this.domain[0] = Math.min(x, this.domain[0]);
         this.domain[1] = Math.max(x, this.domain[1]);
         this.range[0] = Math.min(y, this.range[0]);
         this.range[1] = Math.max(y, this.range[1]);
 
-        return { x: x, y: y };
+        return this.provider !== undefined ? this.provider(x, y) : { x: x, y: y };
     }
 
     getPoint(x, y)
     {
-        let map = this.points.get(x);
-        if (map === undefined)
+        let map = this.points.get(y);
+        if (map === undefined) 
         {
             map = new Map();
-            this.points.set(x, map);
+            this.points.set(y, map);
         }
 
-        let entry = map.get(y);
-        if (entry === undefined)
+        let entry = map.get(x);
+        if (entry === undefined) 
         {
             entry = this._createPoint(x, y);
-            map.set(y, entry);
+            map.set(x, entry);
             this.data.push(entry);
         }
 
         return entry;
     }
 
-    getDomain()
+    getDomain() 
     {
         return { min: this.domain[0], max: this.domain[1] };
     }
 
-    getRange()
+    getRange() 
     {
         return { min: this.range[0], max: this.range[1] };
     }
 
-    [Symbol.iterator]()
+    [Symbol.iterator]() 
     {
         return this.data.values();
+    }
+
+    // Perform an action each plane pointe, from top left to bottom right
+    // pointAction accepts (x, y, point) and can return false to cancel
+    forEach(pointAction)
+    {
+        let [xMin, xMax] = this.domain;
+        let [yMin, yMax] = this.range;
+
+        if (pointAction !== undefined && xMax - xMin > 0 && yMax - yMin >= 0)
+        {
+            let canceled = false;
+            for (let y = yMax; y >= yMin && !canceled; y--)
+            {
+                let row = this.points.get(y);
+
+                for (let x = xMin; x <= xMax && !canceled; x++)
+                {
+                    let point = row === undefined ? undefined : row.get(x);
+                    canceled = pointAction(x, y, point) === false;
+                }
+            }
+        }
+    }
+
+    // Build a string representation of this plane
+    // pointConverter accepts a point and returns a string
+    toString(pointConverter)
+    {
+        let text = '';
+        let lastY = Number.Infinity;
+
+        this.forEach((x,y, point) =>
+        {
+            if (y !== lastY)
+            {
+                text += (lastY === Number.Infinity ? '' : '\n');
+                lastY = y;
+            }
+
+            if (pointConverter === undefined)
+                text += (point === undefined ? '-' : 'X');
+            else
+                text += pointConverter(point);
+        });
+
+        return text;
     }
 }
 
@@ -298,41 +345,41 @@ let grid = new Plane();
 let outputIsColor = true;
 
 let computer1 = new IntCodeComputer(
-	() =>
-	{
-	    let point = grid.getPoint(x, y);
-		let color = point['color'];
-		return color === undefined ? 0 : color;
-	},
-	(value) =>
-	{
-		if (outputIsColor)
-		{
-			grid.getPoint(x, y).color = value;
-		}
-		else
-		{
-			direction = (direction + (value === 0 ? -1 : 1)) % 4;
-			if (direction < 0)
-				direction += 4;
+    () =>
+    {
+        let point = grid.getPoint(x, y);
+        let color = point['color'];
+        return color === undefined ? 0 : color;
+    },
+    (value) =>
+    {
+        if (outputIsColor)
+        {
+            grid.getPoint(x, y).color = value;
+        }
+        else
+        {
+            direction = (direction + (value === 0 ? -1 : 1)) % 4;
+            if (direction < 0)
+                direction += 4;
 
-			if (direction == 0)
-				y++;
-			else if (direction == 2)
-				y--;
-			else if (direction == 1)
-				x++;
-			else if (direction == 3)
-				x--;
-		}
-		outputIsColor = !outputIsColor;
-	});
+            if (direction == 0)
+                y++;
+            else if (direction == 2)
+                y--;
+            else if (direction == 1)
+                x++;
+            else if (direction == 3)
+                x--;
+        }
+        outputIsColor = !outputIsColor;
+    });
 computer1.run(program.split(','));
 
 let visited = 0;
 for (let row of grid)
 {
-	visited++;
+    visited++;
 }
 
 console.log('11.1: ' + visited);
@@ -347,62 +394,38 @@ outputIsColor = true;
 grid.getPoint(0,0).color = 1;
 
 let computer2 = new IntCodeComputer(
-	() =>
-	{
-	    let point = grid.getPoint(x, y);
-		let color = point['color'];
-		return color === undefined ? 0 : color;
-	},
-	(value) =>
-	{
-		if (outputIsColor)
-		{
-			grid.getPoint(x, y).color = value;
-		}
-		else
-		{
-			direction = (direction + (value === 0 ? -1 : 1)) % 4;
-			if (direction < 0)
-				direction += 4;
+    () =>
+    {
+        let point = grid.getPoint(x, y);
+        let color = point['color'];
+        return color === undefined ? 0 : color;
+    },
+    (value) =>
+    {
+        if (outputIsColor)
+        {
+            grid.getPoint(x, y).color = value;
+        }
+        else
+        {
+            direction = (direction + (value === 0 ? -1 : 1)) % 4;
+            if (direction < 0)
+                direction += 4;
 
-			if (direction == 0)
-				y++;
-			else if (direction == 2)
-				y--;
-			else if (direction == 1)
-				x++;
-			else if (direction == 3)
-				x--;
-		}
-		outputIsColor = !outputIsColor;
-	});
+            if (direction == 0)
+                y++;
+            else if (direction == 2)
+                y--;
+            else if (direction == 1)
+                x++;
+            else if (direction == 3)
+                x--;
+        }
+        outputIsColor = !outputIsColor;
+    });
 computer2.run(program.split(','));
 
-let pixels = _.chain([...grid])
-    .orderBy(['y', 'x'], ['desc', 'asc'])
-    .groupBy('y')
-    .value();
-
-let output = '';
-for (let row in pixels)
-{
-    let cells = pixels[row];
-    for (let x = grid.getDomain().min, i = 0; i < cells.length; i++, x++)
-    {
-        let cell = cells[i];
-        while (x < cell.x)
-        {
-            output += '  ';
-            x++;
-        }
-
-        output += (cell.color === 0 ? '  ' : '##');
-    }
-
-    output += '\n';
-}
-
 console.log('11.2:');
-console.log(output);
+console.log(grid.toString(p => (p && p.color === 1 ? '##' : '  ')));
 
 }
