@@ -229,13 +229,12 @@ class IntCodeComputer
     }
 }
 
-class Plane 
+class Plane
 {
     // newPointHandler accepts plane position (x,y) and must return an object
     constructor(newPointHandler) 
     {
         this.provider = newPointHandler;
-        this.data = [];
         this.points = new Map();
         this.domain = [0, 0];
         this.range = [0, 0];
@@ -265,7 +264,6 @@ class Plane
         {
             entry = this._createPoint(x, y);
             map.set(x, entry);
-            this.data.push(entry);
         }
 
         return entry;
@@ -281,32 +279,70 @@ class Plane
         return { min: this.range[0], max: this.range[1] };
     }
 
-    [Symbol.iterator]() 
+    // Iteration options include:
+    // includeEmpty (default true)
+    // topToBottom (default true)
+    // leftToRight (default true)
+    *_iterate(options)
     {
-        return this.data.values();
-    }
+        let includeEmpty = true;
+        let topToBottom = true;
+        let leftToRight = true;
+        let wrapPoint = true;
 
-    // Perform an action each plane pointe, from top left to bottom right
-    // pointAction accepts (x, y, point) and can return false to cancel
-    forEach(pointAction)
-    {
+        // parse option overrides
+        if (options !== undefined)
+        {
+            if (typeof(options.includeEmpty) !== 'undefined')
+            {
+                includeEmpty = Boolean(options.includeEmpty);
+            }
+            if (typeof(options.topToBottom) !== 'undefined')
+            {
+                topToBottom = Boolean(options.topToBottom);
+            }
+            if (typeof(options.leftToRight) !== 'undefined')
+            {
+                leftToRight = Boolean(options.leftToRight);
+            }
+            if (typeof(options.wrapPoint) !== 'undefined')
+            {
+                wrapPoint = Boolean(options.wrapPoint);
+            }
+        }
+
         let [xMin, xMax] = this.domain;
         let [yMin, yMax] = this.range;
 
-        if (pointAction !== undefined && xMax - xMin > 0 && yMax - yMin >= 0)
-        {
-            let canceled = false;
-            for (let y = yMax; y >= yMin && !canceled; y--)
-            {
-                let row = this.points.get(y);
+        // row ietartion bounds and direction
+        let yStep = topToBottom ? -1 : 1;
+        let yFrom = topToBottom ? yMax : yMin;
+        let yTo = topToBottom ? yMin : yMax;
 
-                for (let x = xMin; x <= xMax && !canceled; x++)
+        // column ietartion bounds and direction
+        let xStep = leftToRight ? 1 : -1;
+        let xFrom = leftToRight ? xMin : xMax;
+        let xTo = leftToRight ? xMax : xMin;
+
+        for (let y = yFrom; topToBottom && y >= yTo || !topToBottom && y <= yTo; y += yStep)
+        {
+            let row = this.points.get(y);
+
+            for (let x = xFrom; leftToRight && x <= xTo || !leftToRight && x >= xToo; x += xStep)
+            {
+                let point = row === undefined ? undefined : row.get(x);
+                if (point !== undefined || includeEmpty === true)
                 {
-                    let point = row === undefined ? undefined : row.get(x);
-                    canceled = pointAction(x, y, point) === false;
+                    yield wrapPoint ? { x:x, y:y, value:point } : point;
                 }
             }
         }
+    }
+
+    // get in-use grid points
+    [Symbol.iterator]()
+    {
+        return this._iterate({ wrapPoint:false, includeEmpty:false });
     }
 
     // Build a string representation of this plane
@@ -316,19 +352,19 @@ class Plane
         let text = '';
         let lastY = Number.Infinity;
 
-        this.forEach((x,y, point) =>
+        for (let entry of this._iterate())
         {
-            if (y !== lastY)
+            if (entry.y !== lastY)
             {
                 text += (lastY === Number.Infinity ? '' : '\n');
-                lastY = y;
+                lastY = entry.y;
             }
 
             if (pointConverter === undefined)
-                text += (point === undefined ? '-' : 'X');
+                text += (entry.value === undefined ? '-' : 'X');
             else
-                text += pointConverter(point);
-        });
+                text += pointConverter(entry.value);
+        }
 
         return text;
     }
