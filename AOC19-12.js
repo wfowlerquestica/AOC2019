@@ -75,15 +75,11 @@ for (let t = 0; t < maxTime; t++)
 console.log('12.1: ' + _.sumBy(moons, 'me'));
 
 // 12.2
-input = `<x=-8, y=-10, z=0>
-<x=5, y=5, z=10>
-<x=2, y=-7, z=3>
-<x=9, y=-8, z=-3>`;
-
 moons = parse(input);
+let states = new Map([[0, new Map()], [1, new Map()], [2, new Map()]]);
+let periods = new Map();
 
 let steps = 0;
-let previousStates = new Set();
 
 while (true)
 {
@@ -116,20 +112,44 @@ while (true)
         }
     }
 
-    // build state
-    let state = _.join(_.map(moons, m => _.concat(m.position, m.velocity)), ',');
+    // track the periods of each dimension independently
+    for (let axis = 0; axis < 3; axis++)
+    {
+        let period = periods.get(axis);
+        if (period === undefined)
+        {
+            let state = '';
+            for (let i = 0; i < moons.length; i++)
+            {
+                state += moons[i].position[axis] + ',' + moons[i].velocity[axis] + ',';
+            }
 
-    // test state
-    if (steps > 100 || previousStates.has(state))
+            // when an existing state is found determine the number of steps previous
+            let axisStates = states.get(axis);
+            if (axisStates.has(state))
+            {
+                let start = axisStates.get(state);
+                periods.set(axis, steps - start);
+            }
+
+            // record the new state for this dimension
+            else
+            {
+                axisStates.set(state, steps);
+            }
+        }
+    }
+
+    // exit once all periods have been determined
+    if (periods.size == 3)
     {
        break; 
     }
 
-    // record state
-    previousStates.add(state);
     steps++;
 }
 
-console.log('12.2: ' + steps);
+console.log('12.2: LCM of ' + [...periods.values()]);
+// 402951477454512
 
 }
