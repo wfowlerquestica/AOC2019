@@ -1,7 +1,5 @@
 {
 
-fetch('https://cdn.jsdelivr.net/npm/lodash@4.17.4/lodash.min.js').then(r => eval(r.text()));
-
 class Node
 {
     constructor(name,value)
